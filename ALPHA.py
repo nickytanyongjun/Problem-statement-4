@@ -4,17 +4,22 @@ import requests
 import datetime
 import webbrowser
 import pyaudio
+import pyautogui
+import keyboard
+import os
+import time
 
 
 recognizer = sr.Recognizer()
+recognizer.dynamic_energy_threshold = True
 tts = pyttsx3.init()
-tts.setProperty('rate', 250)
+tts.setProperty('rate', 200)
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "llama3.2"  
+MODEL_NAME = "llama3.2"
 
-WAKE_WORD = "hey alpha" or "hit alpha" or "pete alpha" or "pet alpha"
-wakeword = "alpha"
+WAKE_WORD = "hey alpha" or "hit alpha" or "pete alpha" or "alpha" or "alfa"
+
 
 print("       ____      ___            ________        ____  ____             _____")
 print("      /    |     |  |           |  ____ \       |  |  |  |            /    |")
@@ -28,6 +33,8 @@ print("/__/     |_| ()  |_______|  ()  |_|         ()  |_ |  |_ |  ()  /__/     
 print("please enter your username")
 name = input("username :")
 
+correct = name == "nicky"
+
 
 def wishMe():
     hour = int(datetime.datetime.now().hour)
@@ -36,86 +43,105 @@ def wishMe():
     if hour>=12 and hour<18:
         speak("Good Afternoon " + name)
     if hour>=18 and hour<24:
-        speak("Good Evening " + name) 
-    speak("how can i help you")   
+        speak("Good Evening " + name)
+    speak("how can i help you")
+
 
 def speak(text):
     print("ALPHA:\n", text)
     tts.say(text)
     tts.runAndWait()
 
-def listen_for_wake_word():
-    with sr.Microphone() as source:
-        print("Listening for wake word...")
-        audio = recognizer.listen(source)
 
-        
+def listen_for_wake_word():
+    print("Hold Ctrl + t to talk... release to stop.")
+    with sr.Microphone() as source:
+        recognizer.adjust_for_ambient_noise(source, duration=1)
+        audio_data = None
+
+        while True:
+            if keyboard.is_pressed("ctrl+t"):
+                speak("Listening")
+                try:
+                    audio_data = recognizer.listen(source, phrase_time_limit=10) 
+                except Exception as e:
+                    speak("Error while listening:", e)
+                    return None
+                
+                if not keyboard.is_pressed("ctrl+t"):
+                    speak("stopped listening")
+                    break
+            else:
+                continue
+
+    if not audio_data:
+        return None
 
     try:
-        query = recognizer.recognize_google(audio).lower()
-        print(name +":", query)
+        query = recognizer.recognize_google(audio_data).lower() 
+        print(name + ":", query)
 
-        #normal tesk
         
-        if wakeword in query: 
-            if "time"in query or "what's the time" in query or "what is the time" in query  :
-                 strTime = datetime.datetime.now().strftime("%H:%M")    
-                 print(f"The time is {strTime}")
-                 speak(f"The time is {strTime}")
-                 
-            if "youtube" in query:
-                webbrowser.open("https://www.youtube.com/")
-                print("opening youtube")
-                speak("opening youtube")
-        
+        if "time" in query:
+            strTime = datetime.datetime.now().strftime("%H:%M")
+            speak(f"The time is {strTime}")
 
-            if "new tab" in query:
-                webbrowser.open("www.google.com")
-                print ("opening new tab")
-                speak ("opening new tab")
+        if "youtube" in query:
+            webbrowser.open("https://www.youtube.com/")
+            speak(query)
 
-            if "sign algauage" in query:
-                webbrowser.open ("https://sign.mt/")
+        if 'spam' in query:
+            email = input("paste your email here: ")
+            if "#1" in email or "100% more" in query:
+                print("spam")
+            else:
+                print("not spam")
+
+        if 'repeat' in query:
+            msg = input("paste it here :")
+            speak(msg)
+
+        if 'my bedroom light' in query:
+            pyautogui.press("winleft")
+            time.sleep(0.5)
+            pyautogui.typewrite("smartthings", interval=0.001)
+            pyautogui.press("enter")
+            time.sleep(2)
+            pyautogui.click(x=363, y=215)
+            print (query)
                 
-
-
-
-            if 'review' in query:
-                speak("yes just paste the review content here and i will try to analyse and determine its real or fake but do note that this is analysis is base off my data and its not 100 percent accuarte")
-                print("yes just paste the review content here and i will try to analyse and determine its real or fake but do note that this is analysis is base off my data and its not 100% accuarte")
-                review = input("paste your email here: ")
-
-                if "#1" or "100% more" or "Amazing customer service" or "best purchase ever" in review:
-                    print("yes, the review given above could be a fake this is because it generate a sence of too good to be true ")
-                    speak("yes, the review given above could be a fake this is because it generate a sence of too good to be true ")
-
-                if "delicious" or "excellent" or "best ever" or "Highly recommendable product" or "Life changing experience" in review :
-                    print("yes, the review given above could be a fake this is because the review is excessive prsising the product")
-                    speak("yes, the review given above could be a fake this is because the review is excessive prsising the product")
-
-                else:
-                    print("it's a genuine review")
-                    speak("it's a genuine review")
-                    
+        if 'laptop' in query:
+            pyautogui.press("winleft")
+            time.sleep(0.5)
+            pyautogui.typewrite("smartthings", interval=0.001)
+            pyautogui.press("enter")
+            time.sleep(2)
+            pyautogui.click(x=733, y=220)
+            speak(query)
+                
+        
+ 
 
         if WAKE_WORD in query:
             cleaned_query = query.replace(WAKE_WORD, '').strip()
             return cleaned_query if cleaned_query else None
         else:
-            print("Wake word not detected.")
             return None
 
     except sr.UnknownValueError:
+        speak("could not understand audio")
         print("Could not understand audio.")
         return None
     except sr.RequestError as e:
+        speak("speech recognition error")
         print(f"Speech recognition error: {e}")
         return None
+
 
 def talk_to_ollama(prompt):
     payload = {
         "model": MODEL_NAME,
-        "prompt": prompt + ("in one or two sentence and without using the symbol *"), 
+        "prompt": prompt + (" in short"),
         "stream": False
     }
     try:
@@ -129,10 +155,11 @@ def talk_to_ollama(prompt):
         print("Request failed:", e)
         return "Failed to reach ALPHA."
 
-# Main 
+
+# Main
 if __name__ == "__main__":
     wishMe()
-    print("Say 'Alpha' to begin.")
+    print("Say 'Alpha' to begin. Hold Ctrl + T to activate mic.")
     while True:
         user_input = listen_for_wake_word()
         if user_input:
@@ -141,5 +168,3 @@ if __name__ == "__main__":
                 break
             response = talk_to_ollama(user_input)
             speak(response)
-            
-        
